@@ -435,10 +435,21 @@ class TimeTrackingApp(App):
     #stats-output {
         padding: 1;
     }
+    
+    /* Focus styles for better navigation */
+    DataTable:focus {
+        border: double $accent;
+    }
+    
+    .focused {
+        border: double $accent;
+        background: $boost;
+    }
     """
     
     BINDINGS = [
         Binding("a", "add_task", "Add Task"),
+        Binding("t", "start_selected_task", "Start Task"),  # Changed from Enter to 't'
         Binding("space", "toggle_pause", "Pause/Resume"),
         Binding("s", "stop_task", "Stop Task"),
         Binding("e", "edit_task", "Edit Task"),
@@ -446,6 +457,12 @@ class TimeTrackingApp(App):
         Binding("w", "weekly_stats", "Weekly Stats"),
         Binding("r", "refresh", "Refresh"),
         Binding("q", "quit", "Quit"),
+        # Navigation bindings
+        Binding("ctrl+w", "switch_panel", "Switch Panel"),
+        Binding("up", "cursor_up", "Up", priority=True),
+        Binding("down", "cursor_down", "Down", priority=True),
+        Binding("k", "cursor_up", "Up", priority=True),
+        Binding("j", "cursor_down", "Down", priority=True),
     ]
     
     TITLE = "Agresso Time Tracker"
@@ -455,6 +472,7 @@ class TimeTrackingApp(App):
         self.db = TimeTrackingDB()
         self.selected_todo_id = None
         self.selected_finished_id = None
+        self.current_focus = "todo"  # "todo" or "finished"
     
     def compose(self) -> ComposeResult:
         yield Header()
@@ -475,18 +493,28 @@ class TimeTrackingApp(App):
                 # Right: TODO Tasks
                 with Vertical(id="todo-panel", classes="panel"):
                     yield Label("[bold green]📋 TODO Tasks[/]")
-                    yield DataTable(id="todo-table")
+                    todo_table = DataTable(id="todo-table")
+                    todo_table.cursor_type = "row"
+                    todo_table.zebra_stripes = True
+                    yield todo_table
             
             # Bottom: Finished Tasks Today
             with Container(id="finished-panel", classes="panel"):
                 yield Label("[bold blue]✅ Finished Tasks Today[/]")
-                yield DataTable(id="finished-table")
+                finished_table = DataTable(id="finished-table")
+                finished_table.cursor_type = "row"
+                finished_table.zebra_stripes = True
+                yield finished_table
         
         yield Footer()
     
     def on_mount(self) -> None:
-        self.update_timer = self.set_interval(1, self.update_current_task_display)
+        self.update_timer = self.set_interval(1, self.update_current_task_display, pause=False)
         self.refresh_data()
+        # Set initial focus to TODO table
+        self.set_focus(self.query_one("#todo-table"))
+        self.current_focus = "todo"
+        self.highlight_current_focus()
     
     def update_date_display(self) -> None:
         """Update the date display"""
@@ -507,23 +535,30 @@ class TimeTrackingApp(App):
                 duration = self.db.get_current_task_duration(running_task.id)
                 hours = int(duration)
                 minutes = int((duration - hours) * 60)
+                seconds = int((duration - hours - minutes/60) * 3600)
                 
                 status_icon = "▶️" if running_task.status == "running" else "⏸️"
                 status_text = "RUNNING" if running_task.status == "running" else "PAUSED"
+                
+                # Show start time if available
+                start_time = ""
+                if running_task.started_at:
+                    start_time = running_task.started_at.strftime("%H:%M:%S")
                 
                 info = f"""[bold]{status_icon} {status_text}[/]
 
 [cyan]Code:[/] {running_task.agresso_code}
 [cyan]Activity:[/] {running_task.activity}
 
-[yellow]Duration:[/] {hours}h {minutes}m
+[yellow]Duration:[/] {hours:02d}:{minutes:02d}:{seconds:02d}
+[dim]Started:[/] {start_time}
 
-[dim]Space: Pause/Resume | S: Stop[/]"""
+[dim]T: Start Task | Space: Pause/Resume | S: Stop[/]"""
                 
                 self.query_one("#current-task-info", Static).update(info)
             else:
                 self.query_one("#current-task-info", Static).update(
-                    "[dim]No task running\n\nSelect a TODO task\nand press Enter to start[/]"
+                    "[dim]No task running\n\nSelect a TODO task\nand press T to start[/]"
                 )
         except Exception:
             # Widget not mounted yet, skip update
@@ -560,7 +595,7 @@ class TimeTrackingApp(App):
                     str(task.id),
                     task.agresso_code,
                     task.activity[:30] + "..." if len(task.activity) > 30 else task.activity,
-                    f"{hours}h {minutes}m"
+                    f"{hours}h {minutes:02d}m"
                 )
             
             self.update_current_task_display()
@@ -573,25 +608,126 @@ class TimeTrackingApp(App):
         if event.data_table.id == "todo-table":
             row_key = event.row_key
             cells = event.data_table.get_row(row_key)
-            self.selected_todo_id = int(cells[0])
-            
-            # Ask if user wants to start this task
-            def start_task():
-                task, error = self.db.start_task(self.selected_todo_id)
-                if error:
-                    self.notify(error, severity="warning")
-                else:
-                    self.notify(f"Started: {task.activity}")
-                    self.refresh_data()
-            
-            self.push_screen(
-                ConfirmDialog("Start this task?", start_task)
-            )
+            if cells:
+                self.selected_todo_id = int(cells[0])
+                self.current_focus = "todo"
         
         elif event.data_table.id == "finished-table":
             row_key = event.row_key
             cells = event.data_table.get_row(row_key)
-            self.selected_finished_id = int(cells[0])
+            if cells:
+                self.selected_finished_id = int(cells[0])
+                self.current_focus = "finished"
+    
+    def on_data_table_cell_selected(self, event: DataTable.CellSelected) -> None:
+        """Handle cell selection to update our internal selection"""
+        if event.data_table.id == "todo-table":
+            # Get the row data for the selected cell
+            row_data = event.data_table.get_row(event.cursor_row)
+            if row_data:
+                self.selected_todo_id = int(row_data[0])
+                self.current_focus = "todo"
+        
+        elif event.data_table.id == "finished-table":
+            row_data = event.data_table.get_row(event.cursor_row)
+            if row_data:
+                self.selected_finished_id = int(row_data[0])
+                self.current_focus = "finished"
+    
+    def action_switch_panel(self) -> None:
+        """Switch focus between TODO and Finished panels"""
+        if self.current_focus == "todo":
+            self.set_focus(self.query_one("#finished-table"))
+            self.current_focus = "finished"
+        else:
+            self.set_focus(self.query_one("#todo-table"))
+            self.current_focus = "todo"
+        self.highlight_current_focus()
+    
+    def highlight_current_focus(self) -> None:
+        """Highlight the currently focused panel"""
+        # Remove focus from all panels
+        self.query_one("#todo-panel").remove_class("focused")
+        self.query_one("#finished-panel").remove_class("focused")
+        
+        # Add focus to current panel
+        if self.current_focus == "todo":
+            self.query_one("#todo-panel").add_class("focused")
+        else:
+            self.query_one("#finished-panel").add_class("focused")
+    
+    def action_cursor_up(self) -> None:
+        """Move cursor up in current table"""
+        try:
+            if self.current_focus == "todo":
+                table = self.query_one("#todo-table")
+                if table.row_count > 0:
+                    current_row = table.cursor_row
+                    if current_row > 0:
+                        table.cursor_row = current_row - 1
+                        self._update_selection_from_cursor(table, "todo")
+            else:
+                table = self.query_one("#finished-table")
+                if table.row_count > 0:
+                    current_row = table.cursor_row
+                    if current_row > 0:
+                        table.cursor_row = current_row - 1
+                        self._update_selection_from_cursor(table, "finished")
+        except Exception as e:
+            # Ignore navigation errors
+            pass
+    
+    def action_cursor_down(self) -> None:
+        """Move cursor down in current table"""
+        try:
+            if self.current_focus == "todo":
+                table = self.query_one("#todo-table")
+                if table.row_count > 0:
+                    current_row = table.cursor_row
+                    if current_row < table.row_count - 1:
+                        table.cursor_row = current_row + 1
+                        self._update_selection_from_cursor(table, "todo")
+            else:
+                table = self.query_one("#finished-table")
+                if table.row_count > 0:
+                    current_row = table.cursor_row
+                    if current_row < table.row_count - 1:
+                        table.cursor_row = current_row + 1
+                        self._update_selection_from_cursor(table, "finished")
+        except Exception as e:
+            # Ignore navigation errors
+            pass
+    
+    def _update_selection_from_cursor(self, table, table_type) -> None:
+        """Update selection based on cursor position"""
+        try:
+            row_data = table.get_row_at(table.cursor_row)
+            if row_data:
+                if table_type == "todo":
+                    self.selected_todo_id = int(row_data[0])
+                else:
+                    self.selected_finished_id = int(row_data[0])
+        except Exception:
+            pass
+    
+    def action_start_selected_task(self) -> None:
+        """Start the currently selected TODO task using 't' key"""
+        if not self.selected_todo_id:
+            self.notify("No task selected. Use arrow keys to select a TODO task first.", severity="warning")
+            return
+        
+        # Check if there's already a running task
+        running_task = self.db.get_running_task()
+        if running_task:
+            self.notify(f"Another task is already running: {running_task.activity}. Stop it first.", severity="warning")
+            return
+        
+        task, error = self.db.start_task(self.selected_todo_id)
+        if error:
+            self.notify(error, severity="error")
+        else:
+            self.notify(f"✅ Started: {task.activity}")
+            self.refresh_data()
     
     def action_add_task(self) -> None:
         """Open add task screen"""
@@ -603,10 +739,10 @@ class TimeTrackingApp(App):
         if running_task:
             if running_task.status == 'running':
                 self.db.pause_task(running_task.id)
-                self.notify("Task paused")
+                self.notify("⏸️ Task paused")
             elif running_task.status == 'paused':
                 self.db.resume_task(running_task.id)
-                self.notify("Task resumed")
+                self.notify("▶️ Task resumed")
             self.refresh_data()
         else:
             self.notify("No task is running", severity="warning")
@@ -617,16 +753,16 @@ class TimeTrackingApp(App):
         if running_task:
             def finish_task():
                 self.db.stop_task(running_task.id, finish=True)
-                self.notify("Task finished!")
+                self.notify("✅ Task finished!")
                 self.refresh_data()
             
             def cancel_task():
                 self.db.stop_task(running_task.id, finish=False)
-                self.notify("Task stopped (not finished)")
+                self.notify("🛑 Task stopped (not finished)")
                 self.refresh_data()
             
             self.push_screen(
-                ConfirmDialog("Mark task as finished?", finish_task, cancel_task)
+                ConfirmDialog(f"Mark '{running_task.activity}' as finished?", finish_task, cancel_task)
             )
         else:
             self.notify("No task is running", severity="warning")
@@ -637,19 +773,26 @@ class TimeTrackingApp(App):
             task = self.db.get_task_by_id(self.selected_finished_id)
             if task:
                 self.push_screen(EditTaskScreen(task))
+            else:
+                self.notify("Task not found", severity="error")
         else:
-            self.notify("Select a finished task first", severity="warning")
+            self.notify("Select a finished task first (use Ctrl+W to switch panels)", severity="warning")
     
     def action_delete_task(self) -> None:
         """Delete a TODO task"""
         if self.selected_todo_id:
+            task = self.db.get_task_by_id(self.selected_todo_id)
+            if not task:
+                self.notify("Task not found", severity="error")
+                return
+            
             def do_delete():
                 self.db.delete_task(self.selected_todo_id)
-                self.notify("Task deleted")
+                self.notify("🗑️ Task deleted")
                 self.refresh_data()
             
             self.push_screen(
-                ConfirmDialog("Delete this task?", do_delete)
+                ConfirmDialog(f"Delete '{task.activity}'?", do_delete)
             )
         else:
             self.notify("Select a TODO task first", severity="warning")
@@ -657,7 +800,7 @@ class TimeTrackingApp(App):
     def action_refresh(self) -> None:
         """Refresh all data"""
         self.refresh_data()
-        self.notify("Data refreshed!")
+        self.notify("🔄 Data refreshed!")
     
     def action_weekly_stats(self) -> None:
         """Open weekly statistics screen"""
