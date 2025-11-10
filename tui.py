@@ -77,20 +77,20 @@ class EditTaskScreen(Screen):
     """Screen for editing a finished task"""
     BINDINGS = [("escape", "app.pop_screen", "Back")]
     
-    def __init__(self, task):
+    def __init__(self, task_to_edit):
         super().__init__()
-        self.task = task
+        self.task_data = task_to_edit
     
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="add-form"):
             yield Label("Edit Task", id="form-title")
             yield Label("Agresso Code:")
-            yield Input(placeholder="PRJ-001", id="agresso-code", value=self.task.agresso_code)
+            yield Input(placeholder="PRJ-001", id="agresso-code", value=self.task_data.agresso_code)
             yield Label("Activity Description:")
-            yield Input(placeholder="Backend Development", id="activity", value=self.task.activity)
+            yield Input(placeholder="Backend Development", id="activity", value=self.task_data.activity)
             yield Label("Duration (hours):")
-            yield Input(placeholder="1.5", id="duration", value=str(self.task.duration))
+            yield Input(placeholder="1.5", id="duration", value=str(self.task_data.duration))
             yield Button("Save Changes", variant="success", id="submit-edit")
             yield Label("", id="edit-message")
         yield Footer()
@@ -107,7 +107,7 @@ class EditTaskScreen(Screen):
                     return
                 
                 duration = float(duration_str)
-                self.app.db.update_task(self.task.id, agresso, activity, duration)
+                self.app.db.update_task(self.task_data.id, agresso, activity, duration)
                 
                 self.query_one("#edit-message", Label).update("✓ Task updated successfully!")
                 self.app.refresh_data()
@@ -121,7 +121,11 @@ class EditTaskScreen(Screen):
 
 class WeeklyStatsScreen(Screen):
     """Screen for displaying weekly statistics"""
-    BINDINGS = [("escape", "app.pop_screen", "Back")]
+    BINDINGS = [
+        ("escape", "app.pop_screen", "Back"),
+        ("p", "prev_week", "Previous Week"),
+        ("n", "next_week", "Next Week"),
+    ]
     
     def __init__(self, week=None, year=None):
         super().__init__()
@@ -155,23 +159,37 @@ class WeeklyStatsScreen(Screen):
         from datetime import datetime, timedelta
         
         if event.button.id == "btn-prev-week":
-            # Go to previous week
-            date = datetime.strptime(f'{self.year}-W{self.week}-1', "%Y-W%W-%w")
-            date = date - timedelta(days=7)
-            self.year, self.week, _ = date.isocalendar()
-            self.refresh_stats()
+            self.action_prev_week()
         
         elif event.button.id == "btn-next-week":
-            # Go to next week
-            date = datetime.strptime(f'{self.year}-W{self.week}-1', "%Y-W%W-%w")
-            date = date + timedelta(days=7)
-            self.year, self.week, _ = date.isocalendar()
-            self.refresh_stats()
+            self.action_next_week()
         
         elif event.button.id == "btn-current-week":
             now = datetime.now()
             self.year, self.week, _ = now.isocalendar()
             self.refresh_stats()
+    
+    def action_prev_week(self) -> None:
+        """Go to previous week"""
+        from datetime import datetime, timedelta
+        # Convert current week to a date, subtract 7 days, get new week
+        jan_4 = datetime(self.year, 1, 4)
+        week_1_monday = jan_4 - timedelta(days=jan_4.weekday())
+        current_monday = week_1_monday + timedelta(weeks=self.week - 1)
+        prev_monday = current_monday - timedelta(days=7)
+        self.year, self.week, _ = prev_monday.isocalendar()
+        self.refresh_stats()
+    
+    def action_next_week(self) -> None:
+        """Go to next week"""
+        from datetime import datetime, timedelta
+        # Convert current week to a date, add 7 days, get new week
+        jan_4 = datetime(self.year, 1, 4)
+        week_1_monday = jan_4 - timedelta(days=jan_4.weekday())
+        current_monday = week_1_monday + timedelta(weeks=self.week - 1)
+        next_monday = current_monday + timedelta(days=7)
+        self.year, self.week, _ = next_monday.isocalendar()
+        self.refresh_stats()
     
     def refresh_stats(self):
         """Generate and display weekly statistics"""
