@@ -139,7 +139,6 @@ class WeeklyStatsScreen(Screen):
     
     def compose(self) -> ComposeResult:
         from textual.widgets import RichLog
-        from textual.containers import ScrollableContainer
         
         yield Header()
         with Container(id="stats-container"):
@@ -156,7 +155,7 @@ class WeeklyStatsScreen(Screen):
         self.refresh_stats()
     
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        from datetime import datetime, timedelta
+        from datetime import datetime
         
         if event.button.id == "btn-prev-week":
             self.action_prev_week()
