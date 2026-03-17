@@ -4,7 +4,7 @@ Agresso Time Tracker - Main Entry Point
 A lazygit-style TUI for tracking time and managing Agresso entries
 """
 
-from tui import TimeTrackingApp
+from gui import TimeTrackingApp
 
 def main():
     """Launch the Time Tracking TUI"""

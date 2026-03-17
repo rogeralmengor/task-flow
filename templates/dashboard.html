@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-[#050505] text-gray-300 font-mono">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agresso Time Tracker - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        .terminal-box {
+            border: 1px solid #1e3a8a;
+            background-color: #000000;
+        }
+        .header-bg {
+            background-color: #0a0a0a;
+            border-bottom: 2px solid #1e3a8a;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #1e40af; }
+        
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+
+        .timer-label { color: #6b7280; font-weight: bold; }
+        .timer-value { color: #d1d5db; }
+        .active-time-label { color: #eab308; font-weight: bold; }
+        .active-time-value { color: #ffffff; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <header class="header-bg p-4 mb-6 flex justify-between items-center shadow-lg">
+        <div class="flex items-center gap-3">
+            <span class="text-purple-500 text-xl">👤</span>
+            <h1 class="text-cyan-400 font-bold text-lg tracking-widest">{{ user }}</h1>
+        </div>
+        <a href="/stats" class="text-yellow-500 hover:text-yellow-300 font-bold text-sm tracking-tighter">
+            [W] WEEKLY_STATS
+        </a>
+    </header>
+
+    <section class="mb-8">
+        <div class="terminal-box p-4 border-green-900 shadow-[0_0_10px_rgba(0,50,0,0.3)]">
+            <h3 class="text-green-500 text-xs font-bold mb-3 uppercase">📋 Add New Task</h3>
+            <form hx-post="/api/add" hx-target="body" class="flex flex-wrap gap-4">
+                <input type="text" name="code" placeholder="Agresso Code (e.g. 5710)" required
+                       class="bg-black border border-gray-800 text-cyan-400 p-2 text-sm focus:border-cyan-600 outline-none w-full md:w-1/4">
+                <input type="text" name="activity" placeholder="What are you doing?" required
+                       class="bg-black border border-gray-800 text-gray-400 p-2 text-sm focus:border-cyan-600 outline-none flex-grow">
+                <button type="submit" class="bg-blue-900 hover:bg-blue-700 text-white px-6 py-2 text-xs font-bold border border-blue-500 transition-all">
+                    + CREATE_TASK
+                </button>
+            </form>
+        </div>
+    </section>
+
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+        
+        <aside class="md:col-span-4">
+            <div class="terminal-box p-5 h-full relative overflow-hidden">
+                <h2 class="text-yellow-500 text-sm font-bold mb-4 flex items-center gap-2">
+                    ⏱️ Current Task
+                </h2>
+                
+                <div id="active-task-display" class="border border-blue-800 p-4 bg-[#080808] min-h-[180px] flex flex-col justify-center">
+                    {% if running %}
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="blink text-green-500 text-xs">▶</span>
+                            <span class="text-white font-bold tracking-widest text-xs uppercase">RUNNING</span>
+                        </div>
+                        
+                        <div class="space-y-1 text-sm mb-4">
+                            <p><span class="text-cyan-500 font-bold">Code:</span> <span class="text-white">{{ running.agresso_code }}</span></p>
+                            <p><span class="text-cyan-500 font-bold">Activity:</span> <span class="text-white">{{ running.activity }}</span></p>
+                        </div>
+
+                        <div class="space-y-1 text-xs mb-6 font-mono">
+                            <p>
+                                <span class="active-time-label">⏱️ Active Time:</span> 
+                                <span id="active-timer" class="active-time-value">00h 00m 00s</span>
+                            </p>
+                            <p>
+                                <span class="timer-label">Elapsed:</span> 
+                                <span id="elapsed-timer" class="timer-value">00h 00m 00s</span>
+                            </p>
+                            <p class="pt-2">
+                                <span class="text-green-500 font-bold">Started:</span> 
+                                <span class="text-green-200">{{ running.first_started_at.strftime('%H:%M') }}</span>
+                                <span class="text-cyan-500 font-bold ml-4">Now:</span> 
+                                <span id="clock" class="text-cyan-200">--:--:--</span>
+                            </p>
+                            <p class="text-gray-600 text-[10px] pt-2 uppercase">Space: Pause/Resume | S: Stop</p>
+                        </div>
+
+                        <button hx-post="/api/task/stop/{{running.id}}" 
+                                hx-target="body"
+                                class="w-full bg-red-950/30 border border-red-900 text-red-500 hover:bg-red-900 hover:text-white p-2 text-[10px] font-bold transition-all uppercase">
+                            ■ STOP_AND_FINISH
+                        </button>
+
+                        <script>
+                            (function() {
+                                const startTime = new Date("{{ running.first_started_at.isoformat() }}");
+                                const initialDuration = {{ running.duration * 3600 }};
+
+                                function formatTUI(seconds) {
+                                    const h = Math.floor(seconds / 3600);
+                                    const m = Math.floor((seconds % 3600) / 60);
+                                    const s = Math.floor(seconds % 60);
+                                    return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+                                }
+
+                                function tick() {
+                                    const now = new Date();
+                                    const diff = Math.floor((now - startTime) / 1000);
+                                    document.getElementById('active-timer').innerText = formatTUI(initialDuration + diff);
+                                    document.getElementById('elapsed-timer').innerText = formatTUI(diff);
+                                    document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB', { hour12: false });
+                                }
+
+                                setInterval(tick, 1000);
+                                tick();
+                            })();
+                        </script>
+                    {% else %}
+                        <div class="text-center py-10 border border-dashed border-gray-900">
+                            <p class="text-gray-700 italic text-sm italic">No task running</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </aside>
+
+        <main class="md:col-span-8">
+            <div class="terminal-box p-0 overflow-hidden">
+                <div class="p-4 bg-gray-950 flex justify-between items-center border-b border-blue-900">
+                    <h2 class="text-green-500 text-sm font-bold uppercase">📋 Todo Tasks</h2>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead>
+                            <tr class="bg-blue-900 text-white uppercase">
+                                <th class="p-3 font-bold">ID</th>
+                                <th class="p-3 font-bold">Code</th>
+                                <th class="p-3 font-bold">Activity</th>
+                                <th class="p-3 font-bold text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-900">
+                            {% for task in todos %}
+                            <tr class="hover:bg-gray-900 transition-colors">
+                                <td class="p-3 text-gray-600">{{ task.id }}</td>
+                                <td class="p-3 text-cyan-400 font-bold">{{ task.agresso_code }}</td>
+                                <td class="p-3 text-gray-300">{{ task.activity }}</td>
+                                <td class="p-3 text-right">
+                                    <button hx-post="/api/task/start/{{task.id}}" 
+                                            hx-target="body"
+                                            class="text-blue-400 hover:text-cyan-300 font-bold">
+                                        [START]
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="p-10 text-center text-gray-800 italic">Queue is empty. Take a break.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="mt-8">
+        <div class="terminal-box p-0 overflow-hidden border-blue-950">
+            <div class="p-3 bg-[#0a0a0a] border-b border-blue-900 flex items-center gap-2">
+                <span class="text-green-500 text-sm">✅</span>
+                <h2 class="text-blue-400 text-xs font-bold uppercase">Finished Tasks Today</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-[11px]">
+                    <thead class="text-gray-500 border-b border-gray-900">
+                        <tr>
+                            <th class="p-3">ID</th>
+                            <th class="p-3">Code</th>
+                            <th class="p-3">Activity</th>
+                            <th class="p-3">Start</th>
+                            <th class="p-3">End</th>
+                            <th class="p-3 text-right">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-900">
+                        {% for task in finished %}
+                        <tr class="hover:bg-gray-950 transition-colors">
+                            <td class="p-3 text-gray-700">{{ task.id }}</td>
+                            <td class="p-3 text-cyan-600 font-bold">{{ task.agresso_code }}</td>
+                            <td class="p-3 text-gray-400">{{ task.activity }}</td>
+                            <td class="p-3 text-gray-500">{{ task.first_started_at.strftime('%H:%M') if task.first_started_at else '--:--' }}</td>
+                            <td class="p-3 text-gray-500">{{ task.finished_at.strftime('%H:%M') if task.finished_at else '--:--' }}</td>
+                            <td class="p-3 text-right text-yellow-600 font-bold">
+                                {{ "%.2f"|format(task.duration) }}h
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.successful) {
+                window.location.reload();
+            }
+        });
+    </script>
+</body>
+</html>

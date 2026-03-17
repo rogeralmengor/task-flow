@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html class="bg-[#050505] text-gray-300 font-mono text-sm">
+<head>
+    <meta charset="UTF-8">
+    <title>Weekly Statistics - Agresso Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .terminal-border { border: 1px solid #1e3a8a; }
+        .divider { border-bottom: 1px solid #1e3a8a; margin: 10px 0; }
+        .double-divider { border-bottom: 2px double #1e3a8a; margin: 15px 0; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #050505; }
+        ::-webkit-scrollbar-thumb { background: #1e3a8a; }
+        
+        /* Highlight home button */
+        .home-btn {
+            border: 1px solid #a16207;
+            background-color: #422006;
+            transition: all 0.2s;
+        }
+        .home-btn:hover {
+            background-color: #713f12;
+            color: #fefce8;
+        }
+    </style>
+</head>
+<body class="p-6">
+    <div class="flex justify-between items-center mb-6 bg-[#0a0a0a] p-3 border border-blue-900 shadow-[0_0_10px_rgba(30,58,138,0.3)]">
+        <div class="flex gap-2">
+            <a href="/stats/{{ year }}/{{ week - 1 }}" 
+               class="bg-blue-900 px-4 py-1 text-xs font-bold text-blue-200 hover:bg-blue-700 transition-colors">
+               ◀ PREV_WEEK
+            </a>
+            <a href="/stats/{{ year }}/{{ week + 1 }}" 
+               class="bg-blue-900 px-4 py-1 text-xs font-bold text-blue-200 hover:bg-blue-700 transition-colors">
+               NEXT_WEEK ▶
+            </a>
+        </div>
+
+        <a href="/" class="home-btn px-6 py-1 text-xs font-bold text-yellow-500 uppercase tracking-widest">
+            🏠 Dashboard [ESC]
+        </a>
+
+        <div class="text-cyan-400 font-bold px-2">
+            KW {{ week }}/{{ year }}
+        </div>
+    </div>
+
+    <div class="terminal-border p-5 bg-black shadow-2xl">
+        <h1 class="text-cyan-400 font-bold text-lg mb-1">📊 Weekly Statistics Report</h1>
+        <p class="text-gray-500 text-xs mb-4">
+            <span class="font-bold text-gray-400">Period:</span> {{ stats.first_day.strftime('%d.%m.%Y') }} - {{ stats.last_day.strftime('%d.%m.%Y') }}
+        </p>
+
+        {% if not tasks_by_date %}
+            <div class="py-20 text-center border border-dashed border-gray-800">
+                <p class="text-yellow-600 font-bold">❌ No tasks recorded for this week.</p>
+                <p class="text-gray-600 text-[10px] mt-2 tracking-widest uppercase">Check previous weeks or start a new task</p>
+            </div>
+        {% else %}
+            
+            <h3 class="text-yellow-500 font-bold mt-6 mb-2">📋 DETAILED TASK LIST</h3>
+            <div class="divider"></div>
+            
+            {% for date_key, tasks in tasks_by_date.items() %}
+                <div class="mt-4">
+                    <h4 class="text-cyan-400 font-bold text-xs">{{ tasks[0].finished_at.strftime('%a, %d.%m.%Y') }}</h4>
+                    {% set day_total = namespace(value=0) %}
+                    <div class="mt-1 space-y-0.5">
+                        {% for task in tasks %}
+                            <div class="grid grid-cols-12 gap-2 pl-4 py-1 border-l border-blue-900/30 hover:bg-gray-900/50">
+                                <span class="col-span-2 text-green-500 font-bold">{{ task.agresso_code }}</span>
+                                <span class="col-span-8 text-gray-400 truncate">{{ task.activity }}</span>
+                                <span class="col-span-2 text-yellow-600 text-right">{{ format_duration(task.duration) }}</span>
+                            </div>
+                            {% set day_total.value = day_total.value + task.duration %}
+                        {% endfor %}
+                    </div>
+                    <p class="text-right text-gray-600 text-[10px] italic mt-1 uppercase tracking-tighter">
+                        Daily Total: <span class="text-gray-400">{{ format_duration(day_total.value) }}</span>
+                    </p>
+                </div>
+            {% endfor %}
+
+            <div class="double-divider"></div>
+
+            <h3 class="text-yellow-500 font-bold mt-8 mb-2">💼 SUMMARY BY AGRESSO CODE</h3>
+            <div class="divider"></div>
+            <div class="space-y-1">
+                {% for code, data in stats.stats.items() %}
+                <div class="grid grid-cols-12 gap-4 items-center py-1">
+                    <span class="col-span-2 text-green-500 font-bold">{{ code }}</span>
+                    <span class="col-span-2 text-yellow-500 font-bold">{{ format_duration(data.total_hours) }}</span>
+                    <span class="col-span-2 text-gray-600 text-xs">({{ data.tasks|length }} tasks)</span>
+                    <div class="col-span-6 flex justify-end items-center gap-2">
+                        <div class="w-24 bg-gray-900 h-1 rounded-full hidden md:block">
+                            <div class="bg-cyan-700 h-1 rounded-full" style="width: {{ (data.total_hours / stats.total_hours * 100) }}%"></div>
+                        </div>
+                        <span class="text-cyan-600 font-bold w-12 text-right">{{ "%.1f"|format(data.total_hours / stats.total_hours * 100) }}%</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="divider"></div>
+            <div class="flex justify-between items-center font-bold text-lg mt-2">
+                <span class="text-gray-500 uppercase text-xs tracking-widest">Grand Total</span>
+                <span class="text-white border-b-2 border-green-600">{{ format_duration(stats.total_hours) }}</span>
+            </div>
+
+            <div class="double-divider"></div>
+
+            <h3 class="text-yellow-500 font-bold mt-8 mb-1">📝 AGRESSO WEEKLY SUMMARY</h3>
+            <p class="text-gray-600 text-[10px] mb-4 uppercase tracking-widest">Copy-paste into Agresso Portal</p>
+            <div class="bg-gray-950 p-5 border border-dashed border-gray-800 text-xs leading-relaxed">
+                <p class="text-green-500 font-bold">WEEK: KW {{ week }}/{{ year }}</p>
+                <p class="text-green-500 font-bold mb-4">TOTAL: {{ format_duration(stats.total_hours) }}</p>
+                
+                {% for code, data in stats.stats.items() %}
+                    <div class="mb-4 last:mb-0">
+                        <p class="text-green-400 font-bold">Code: <span class="text-white">{{ code }}</span></p>
+                        <p class="text-cyan-700 ml-4"><span class="font-bold">Activities:</span> {{ data.activities | unique | list | join(', ') }}</p>
+                        <p class="text-yellow-700 ml-4"><span class="font-bold">Time:</span> {{ format_duration(data.total_hours) }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener('keydown', function(event) {
+            // If user presses Escape key, redirect to dashboard
+            if (event.key === "Escape") {
+                window.location.href = "/";
+            }
+            // Optional: Support 'P' for Previous and 'N' for Next
+            if (event.key.toLowerCase() === "p") {
+                window.location.href = "/stats/{{ year }}/{{ week - 1 }}";
+            }
+            if (event.key.toLowerCase() === "n") {
+                window.location.href = "/stats/{{ year }}/{{ week + 1 }}";
+            }
+        });
+    </script>
+</body>
+</html>
