@@ -29,7 +29,6 @@ class TimeTrackingApp:
             stats_data = self.db.get_week_stats(year, week)
             tasks_by_date = defaultdict(list)
             
-            # Group tasks by date for the historical view
             for task in stats_data.get('tasks', []):
                 if task.finished_at:
                     date_key = task.finished_at.strftime('%Y-%m-%d')
@@ -66,32 +65,29 @@ class TimeTrackingApp:
 
         @self.app.route('/api/task/pause/<int:task_id>', methods=['POST'])
         def pause_task(task_id):
-            # Pause moves the task back to 'todo' state but keeps elapsed time
             self.db.pause_task(task_id)
+            return "", 204
+
+        # --- MISSING RESUME ROUTE ADDED HERE ---
+        @self.app.route('/api/task/resume/<int:task_id>', methods=['POST'])
+        def resume_task(task_id):
+            self.db.resume_task(task_id)
             return "", 204
 
         @self.app.route('/api/task/stop/<int:task_id>', methods=['POST'])
         def stop_task(task_id):
-            # Stop finishes the task and records the end time
             self.db.stop_task(task_id, finish=True)
             return "", 204
 
+        # Updated to accept DELETE for the Stats page cleanup
+        @self.app.route('/api/task/<int:task_id>', methods=['DELETE'])
         @self.app.route('/api/task/delete/<int:task_id>', methods=['POST'])
         def delete_task(task_id):
             self.db.delete_task(task_id)
             return "", 204
 
-        @self.app.route('/api/task/edit/<int:task_id>', methods=['POST'])
-        def edit_task(task_id):
-            """Simple edit for Agresso Code and Activity only"""
-            code = request.form.get('code')
-            activity = request.form.get('activity')
-            self.db.update_task(task_id, agresso_code=code, activity=activity)
-            return "", 204
-
         @self.app.route('/api/task/edit-details/<int:task_id>', methods=['POST'])
         def edit_task_details(task_id):
-            """Detailed edit from the Modal (handles timestamps and duration)"""
             code = request.form.get('code')
             activity = request.form.get('activity')
             started_at = request.form.get('started_at')
@@ -99,11 +95,9 @@ class TimeTrackingApp:
             
             if all([code, activity, started_at, finished_at]):
                 self.db.update_task_details(task_id, code, activity, started_at, finished_at)
-            
             return "", 204
 
     def run(self):
-        # Run on all interfaces if needed, port 5000
         self.app.run(debug=True, port=5000, host='0.0.0.0')
 
 if __name__ == "__main__":

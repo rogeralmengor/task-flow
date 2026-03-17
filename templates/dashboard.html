@@ -1,206 +1,218 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-[#050505] text-gray-300 font-mono">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Agresso Time Tracker - Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agresso Flow</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-    <style>
-        .terminal-box { border: 1px solid #1e3a8a; background-color: #000000; }
-        .header-bg { background-color: #0a0a0a; border-bottom: 2px solid #1e3a8a; }
-        .blink { animation: blinker 1.5s linear infinite; }
-        @keyframes blinker { 50% { opacity: 0; } }
-        
-        /* Tailored Modal Styling */
-        .modal-overlay { background-color: rgba(0,0,0,0.9); display: none; }
-        .modal-container { 
-            border: 2px solid #1e3a8a; 
-            background-color: #080808; 
-            box-shadow: 0 0 40px rgba(30,58,138,0.4);
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        active: { 500: '#10b981', 600: '#059669' }, 
+                        stop: { 500: '#f43f5e', 600: '#e11d48' },   
+                        warn: { 500: '#f59e0b' },                  
+                    }
+                }
+            }
         }
-        input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); }
+    </script>
+    <style>
+        body { transition: background-color 0.3s, color 0.3s; }
+        .glass-panel { 
+            @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl; 
+        }
+        .timer-glow {
+            text-shadow: 0 0 30px rgba(16, 185, 129, 0.15);
+        }
+        .modal-overlay { backdrop-filter: blur(8px); display: none; }
+        /* Remove arrows from number inputs if needed */
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <header class="header-bg p-4 mb-6 flex justify-between items-center">
-        <div class="flex items-center gap-3">
-            <span class="text-purple-500 text-xl">👤</span>
-            <h1 class="text-cyan-400 font-bold text-lg tracking-widest">{{ user }}</h1>
-        </div>
-        <a href="/stats" class="text-yellow-500 hover:text-yellow-300 font-bold text-sm uppercase">[W] Weekly_Stats</a>
-    </header>
+<body class="bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-100 min-h-screen font-sans">
 
-    <section class="mb-8">
-        <div class="terminal-box p-4 border-green-900 shadow-[0_0_10px_rgba(0,50,0,0.2)]">
-            <h3 class="text-green-500 text-xs font-bold mb-3 uppercase tracking-tighter">📋 Create Entry</h3>
-            <form hx-post="/api/add" hx-target="body" class="flex flex-wrap gap-4">
-                <input type="text" name="code" placeholder="Code" required class="bg-black border border-gray-800 text-cyan-400 p-2 text-sm w-full md:w-1/4 outline-none focus:border-cyan-600">
-                <input type="text" name="activity" placeholder="Activity" required class="bg-black border border-gray-800 text-gray-400 p-2 text-sm flex-grow outline-none focus:border-cyan-600">
-                <button type="submit" class="bg-blue-900 hover:bg-blue-700 text-white px-6 py-2 text-xs font-bold border border-blue-500 transition-all uppercase">
-                    + Push_Task
+    <nav class="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-20 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-active-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-active-500/20">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                </svg>
+            </div>
+            <div class="flex flex-col">
+                <span class="font-black tracking-tighter text-xl text-slate-900 dark:text-white">Task<span class="text-active-500">Flow</span></span>
+                <span class="text-[9px] font-black text-slate-400 dark:text-slate-600 tracking-[0.3em] -mt-1 uppercase">v1.0.0</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6">
+            {% if request.path == '/stats' or request.path.startswith('/stats/') %}
+                <a href="/" class="flex items-center gap-2 px-5 py-3 bg-active-500/10 text-active-500 rounded-xl text-[10px] font-black tracking-widest transition-all shadow-lg hover:scale-105 hover:bg-active-500/20 active:scale-95">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M21 11H6.83l3.58-3.59L9 6l-6 6 6 6 1.41-1.41L6.83 13H21v-2z"/></svg>
+                    DASHBOARD
+                </a>
+            {% else %}
+                <a href="/stats" class="text-[10px] font-black text-slate-400 hover:text-active-500 transition-colors tracking-[0.2em] uppercase">Weekly Insights</a>
+            {% endif %}
+
+            <button onclick="toggleTheme()" class="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 transition-all hover:scale-105 active:scale-95">
+                <span id="theme-icon-sun" class="hidden dark:block text-warn-500 text-xl">☀️</span>
+                <span id="theme-icon-moon" class="block dark:hidden text-slate-600 text-xl">🌙</span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+    <main class="max-w-6xl mx-auto p-6 space-y-8">
+        
+        <div class="glass-panel p-2 shadow-xl shadow-slate-200/40 dark:shadow-none">
+            <form hx-post="/api/add" hx-target="body" class="flex flex-col md:flex-row items-center gap-3 p-1">
+                <div class="w-full flex-1 flex items-center gap-4 px-6 py-4 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl">
+                    <input type="text" name="code" placeholder="P-CODE" required 
+                           class="bg-transparent border-none focus:ring-0 text-sm font-black w-24 text-active-500 placeholder:text-slate-400">
+                    <div class="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
+                    <input type="text" name="activity" placeholder="What are you working on?" required 
+                           class="bg-transparent border-none focus:ring-0 text-sm flex-grow font-medium placeholder:text-slate-500">
+                </div>
+                <button type="submit" class="w-full md:w-auto bg-slate-900 dark:bg-active-500 hover:bg-active-600 text-white px-10 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-active-500/10 active:scale-95">
+                    Start New
                 </button>
             </form>
         </div>
-    </section>
 
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-        <aside class="md:col-span-4">
-            <div class="terminal-box p-5 h-full relative overflow-hidden">
-                <h2 class="text-yellow-500 text-sm font-bold mb-4 uppercase">⏱️ Monitor</h2>
-                <div id="active-task-display" class="border border-blue-800 p-4 bg-[#080808] min-h-[180px]">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div class="lg:col-span-5">
+                <div class="glass-panel p-8 border-t-[6px] border-t-active-500 relative overflow-hidden h-full">
+                    <div class="flex items-center justify-between mb-10">
+                        <h2 class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">Current Session</h2>
+                        {% if running and running.status == 'running' %}
+                            <div class="flex items-center gap-2 px-3 py-1 bg-active-500/10 rounded-full">
+                                <span class="h-2 w-2 rounded-full bg-active-500 animate-pulse"></span>
+                                <span class="text-[10px] font-black text-active-500 tracking-tighter uppercase">Active</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
                     {% if running %}
-                        <div class="flex items-center gap-2 mb-3"><span class="blink text-green-500 text-xs">▶</span><span class="text-white font-bold text-xs uppercase tracking-widest">Running</span></div>
-                        <div class="space-y-1 text-sm mb-4">
-                            <p><span class="text-cyan-500 font-bold">Code:</span> <span class="text-white">{{ running.agresso_code }}</span></p>
-                            <p><span class="text-cyan-500 font-bold">Activity:</span> <span class="text-white">{{ running.activity }}</span></p>
+                        <div class="space-y-10">
+                            <div class="text-center lg:text-left">
+                                <h3 class="text-4xl font-black tracking-tighter text-slate-900 dark:text-white mb-2">{{ running.agresso_code }}</h3>
+                                <p class="text-slate-500 font-medium text-lg italic">"{{ running.activity }}"</p>
+                            </div>
+                            
+                            <div class="py-14 text-center bg-slate-50 dark:bg-[#0a0f1d] rounded-[3rem] border border-slate-100 dark:border-slate-800">
+                                <span id="active-timer" class="text-7xl font-black tabular-nums tracking-tighter text-slate-900 dark:text-white timer-glow">00:00:00</span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-4">
+                                {% if running.status == 'running' %}
+                                    <button hx-post="/api/task/pause/{{running.id}}" hx-target="body" 
+                                            class="flex items-center justify-center gap-3 py-5 rounded-2xl bg-warn-500/10 text-warn-500 font-black hover:bg-warn-500 hover:text-white transition-all active:scale-95">
+                                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                        <span class="text-[10px] tracking-[0.2em]">PAUSE</span>
+                                    </button>
+                                {% else %}
+                                    <button hx-post="/api/task/resume/{{running.id}}" hx-target="body" 
+                                            class="flex items-center justify-center gap-3 py-5 rounded-2xl bg-active-500/10 text-active-500 font-black hover:bg-active-500 hover:text-white transition-all active:scale-95">
+                                        <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                        <span class="text-[10px] tracking-[0.2em]">RESUME</span>
+                                    </button>
+                                {% endif %}
+                                <button hx-post="/api/task/stop/{{running.id}}" hx-target="body" 
+                                        class="flex items-center justify-center gap-3 py-5 rounded-2xl bg-stop-500 text-white font-black hover:bg-stop-600 transition-all shadow-xl shadow-stop-500/20 active:scale-95">
+                                    <svg class="w-6 h-6 fill-current" viewBox="0 0 24 24"><path d="M6 6h12v12H6z"/></svg>
+                                    <span class="text-[10px] tracking-[0.2em]">FINISH</span>
+                                </button>
+                            </div>
                         </div>
-                        <div class="text-xs mb-6 font-mono bg-black/50 p-2 border border-gray-900">
-                            <p class="text-yellow-500 font-bold">⏱️ Session: <span id="active-timer" class="text-white">00h 00m 00s</span></p>
-                            <p class="text-gray-600">Total: <span id="elapsed-timer" class="text-gray-400">00h 00m 00s</span></p>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button hx-post="/api/task/pause/{{running.id}}" hx-target="body" class="bg-yellow-900/20 border border-yellow-700 text-yellow-500 hover:bg-yellow-700 hover:text-white p-2 text-[10px] font-bold transition-all uppercase">⏸ Pause</button>
-                            <button hx-post="/api/task/stop/{{running.id}}" hx-target="body" class="bg-red-900/20 border border-red-900 text-red-500 hover:bg-red-900 hover:text-white p-2 text-[10px] font-bold transition-all uppercase">■ Finish</button>
-                        </div>
-                        <script>
-                            (function() {
-                                const startTime = new Date("{{ running.current_segment_start.isoformat() if running.current_segment_start else running.first_started_at.isoformat() }}");
-                                const initialDuration = {{ running.duration * 3600 }};
-                                function format(s) {
-                                    const h = Math.floor(s / 3600);
-                                    const m = Math.floor((s % 3600) / 60);
-                                    const sec = Math.floor(s % 60);
-                                    return `${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(sec).padStart(2,'0')}s`;
-                                }
-                                setInterval(() => {
-                                    const diff = Math.floor((new Date() - startTime) / 1000);
-                                    document.getElementById('active-timer').innerText = format(diff);
-                                    document.getElementById('elapsed-timer').innerText = format(initialDuration + ({{ 1 if running.status == 'running' else 0 }} * diff));
-                                }, 1000);
-                            })();
-                        </script>
                     {% else %}
-                        <div class="text-center py-10 text-gray-800 italic uppercase text-[10px] tracking-widest border border-dashed border-gray-900">IDLE_STATE</div>
+                        <div class="h-80 flex flex-col items-center justify-center text-slate-200 dark:text-slate-800">
+                            <svg class="w-20 h-20 mb-6 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <p class="text-[11px] font-black uppercase tracking-[0.3em] opacity-50">Standing By</p>
+                        </div>
                     {% endif %}
                 </div>
             </div>
-        </aside>
 
-        <main class="md:col-span-8">
-            <div class="terminal-box">
-                <div class="p-3 bg-gray-950 border-b border-blue-900 text-green-500 text-xs font-bold uppercase tracking-widest">📋 Task Queue</div>
-                <table class="w-full text-left text-xs">
-                    <thead>
-                        <tr class="bg-blue-900/50 text-white uppercase"><th class="p-3">ID</th><th class="p-3">Code</th><th class="p-3">Activity</th><th class="p-3 text-right">Action</th></tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-900">
+            <div class="lg:col-span-7">
+                <div class="glass-panel h-full flex flex-col overflow-hidden">
+                    <div class="px-8 py-7 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/30 dark:bg-slate-900/30">
+                        <h2 class="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">Incoming Queue</h2>
+                        <span class="text-[10px] font-black px-3 py-1 bg-slate-200/50 dark:bg-slate-800 rounded-full text-slate-500">{{ todos|length }}</span>
+                    </div>
+                    <div class="flex-grow divide-y divide-slate-100 dark:divide-slate-800 overflow-y-auto">
                         {% for task in todos %}
-                        <tr class="hover:bg-gray-900/50 group">
-                            <td class="p-3 text-gray-700">{{ task.id }}</td>
-                            <td class="p-3 text-cyan-400 font-bold">{{ task.agresso_code }}</td>
-                            <td class="p-3 text-gray-400">{{ task.activity }}</td>
-                            <td class="p-3 text-right space-x-2">
-                                <button hx-post="/api/task/start/{{task.id}}" hx-target="body" class="text-blue-400 hover:text-cyan-300 font-bold text-[10px]">[START]</button>
-                                <button hx-post="/api/task/delete/{{task.id}}" hx-confirm="Delete?" hx-target="body" class="text-red-900 hover:text-red-500 font-bold text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">[DEL]</button>
-                            </td>
-                        </tr>
+                        <div class="group flex items-center justify-between px-8 py-6 hover:bg-slate-50 dark:hover:bg-active-500/[0.03] transition-all">
+                            <div class="flex flex-col gap-1">
+                                <span class="text-[10px] font-black text-active-500 tracking-widest uppercase">{{ task.agresso_code }}</span>
+                                <span class="text-base font-bold text-slate-700 dark:text-slate-300">{{ task.activity }}</span>
+                            </div>
+                            <div class="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
+                                <button hx-post="/api/task/start/{{task.id}}" hx-target="body" 
+                                        class="flex items-center justify-center w-12 h-12 bg-active-500 text-white rounded-full hover:bg-active-600 hover:scale-110 shadow-lg shadow-active-500/30 transition-all">
+                                    <svg class="w-6 h-6 fill-current ml-1" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                </button>
+                                <button hx-post="/api/task/delete/{{task.id}}" hx-confirm="Delete this task?" hx-target="body" class="p-2 text-slate-300 hover:text-stop-500 transition-colors">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                        </div>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </div>
+                </div>
             </div>
-        </main>
-    </div>
-
-    <footer class="mt-8">
-        <div class="terminal-box">
-            <div class="p-3 bg-[#0a0a0a] border-b border-blue-900 text-blue-400 text-xs font-bold uppercase tracking-widest">✅ Completed Today</div>
-            <table class="w-full text-left text-[11px]">
-                <thead>
-                    <tr class="text-gray-600 border-b border-gray-900 uppercase"><th class="p-3">Code</th><th class="p-3">Activity</th><th class="p-3">Window</th><th class="p-3 text-right">Duration</th><th class="p-3 text-right">Actions</th></tr>
-                </thead>
-                <tbody class="divide-y divide-gray-900">
-                    {% for task in finished %}
-                    <tr class="hover:bg-gray-950 group">
-                        <td class="p-3 text-cyan-600 font-bold">{{ task.agresso_code }}</td>
-                        <td class="p-3 text-gray-500">{{ task.activity }}</td>
-                        <td class="p-3 text-gray-700">{{ task.first_started_at.strftime('%H:%M') }} - {{ task.finished_at.strftime('%H:%M') }}</td>
-                        <td class="p-3 text-right text-yellow-600 font-bold">{{ "%.2f"|format(task.duration) }}h</td>
-                        <td class="p-3 text-right space-x-2">
-                            <button onclick="openEditModal('{{ task.id }}', '{{ task.agresso_code }}', '{{ task.activity }}', '{{ task.first_started_at.isoformat() }}', '{{ task.finished_at.isoformat() }}')"
-                                    class="text-blue-900 hover:text-cyan-500 font-bold">[EDIT]</button>
-                            <button hx-post="/api/task/delete/{{task.id}}" hx-confirm="Delete permanently?" hx-target="body" class="text-red-900 hover:text-red-500 font-bold opacity-20 group-hover:opacity-100 transition-opacity">[DEL]</button>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
-    </footer>
-
-    <div id="edit-modal-overlay" class="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-50" style="display: none;">
-        <div class="modal-container p-6 w-full max-w-lg">
-            <div class="flex justify-between items-center mb-6 border-b border-blue-900 pb-2">
-                <h3 class="text-cyan-400 font-bold uppercase tracking-widest">📝 Modify Entry</h3>
-                <span class="text-[10px] text-blue-800 font-bold uppercase">Manual_Override</span>
-            </div>
-            
-            <form id="edit-modal-form" hx-post="" hx-target="body" class="space-y-5">
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">Code</label>
-                    <input type="text" name="code" id="m_code" required class="col-span-3 bg-black border border-gray-800 text-cyan-400 p-2 text-sm outline-none focus:border-cyan-600">
-                </div>
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">Activity</label>
-                    <input type="text" name="activity" id="m_activity" required class="col-span-3 bg-black border border-gray-800 text-gray-400 p-2 text-sm outline-none focus:border-cyan-600">
-                </div>
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">Start</label>
-                    <input type="datetime-local" name="started_at" id="m_start" required step="1" class="col-span-3 bg-black border border-gray-800 text-green-500 p-2 text-sm">
-                </div>
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">Finish</label>
-                    <input type="datetime-local" name="finished_at" id="m_finish" required step="1" class="col-span-3 bg-black border border-gray-800 text-yellow-500 p-2 text-sm">
-                </div>
-
-                <div class="flex justify-end gap-4 mt-8 pt-4 border-t border-gray-900">
-                    <button type="button" onclick="closeEditModal()" class="text-[10px] text-gray-600 hover:text-white uppercase font-bold">[Cancel]</button>
-                    <button type="submit" class="bg-blue-900 hover:bg-blue-700 text-white px-8 py-2 text-xs font-bold uppercase border border-blue-500 transition-all">
-                        💾 Update_Task
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
+    </main>
 
     <script>
-        // Hotkeys
-        document.addEventListener('keydown', e => {
-            if (e.key === "Escape") { 
-                if(document.getElementById('edit-modal-overlay').style.display === 'flex') closeEditModal();
-                else window.location.href = "/"; 
+        function toggleTheme() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
+        }
+
+        // Segmented Timer logic (Fixed)
+        {% if running %}
+        (function() {
+            const status = "{{ running.status }}";
+            const baseSeconds = {{ (running.duration or 0) * 3600 }};
+            // Use current_segment_start if running, else use first_started_at for fresh tasks
+            const segmentStartStr = "{{ running.current_segment_start.isoformat() if running.current_segment_start else '' }}";
+            const segmentStart = segmentStartStr ? new Date(segmentStartStr) : null;
+            
+            function updateTimer() {
+                let currentTotal = baseSeconds;
+                if (status === 'running' && segmentStart) {
+                    const now = new Date();
+                    const liveSeconds = Math.floor((now - segmentStart) / 1000);
+                    currentTotal += liveSeconds;
+                }
+
+                const h = Math.floor(currentTotal / 3600).toString().padStart(2, '0');
+                const m = Math.floor((currentTotal % 3600) / 60).toString().padStart(2, '0');
+                const s = Math.floor(currentTotal % 60).toString().padStart(2, '0');
+                
+                const timerEl = document.getElementById('active-timer');
+                if (timerEl) timerEl.innerText = `${h}:${m}:${s}`;
+            }
+
+            if (status === 'running') setInterval(updateTimer, 1000);
+            updateTimer();
+        })();
+        {% endif %}
+
+        // Force HTMX refresh after any state-changing POST
+        document.body.addEventListener('htmx:afterRequest', e => {
+            if (e.detail.successful && e.detail.requestConfig.method !== 'GET') {
+                window.location.reload();
             }
         });
-
-        // HTMX reload
-        document.body.addEventListener('htmx:afterRequest', e => e.detail.successful && window.location.reload());
-
-        function openEditModal(id, code, activity, start, finish) {
-            document.getElementById('m_code').value = code;
-            document.getElementById('m_activity').value = activity;
-            // HTML5 datetime-local expects YYYY-MM-DDTHH:MM:SS
-            document.getElementById('m_start').value = start.substring(0, 19);
-            document.getElementById('m_finish').value = finish.substring(0, 19);
-            
-            const form = document.getElementById('edit-modal-form');
-            form.setAttribute('hx-post', `/api/task/edit-details/${id}`);
-            htmx.process(form); // Tell HTMX to watch the new action
-            
-            document.getElementById('edit-modal-overlay').style.display = 'flex';
-        }
-
-        function closeEditModal() {
-            document.getElementById('edit-modal-overlay').style.display = 'none';
-        }
     </script>
 </body>
 </html>

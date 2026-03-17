@@ -1,209 +1,193 @@
 <!DOCTYPE html>
-<html class="bg-[#050505] text-gray-300 font-mono text-sm">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>Weekly Statistics - Agresso Tracker</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agresso Flow | Weekly Insights</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        active: { 500: '#10b981' }, 
+                        stop: { 500: '#f43f5e' },   
+                        warn: { 500: '#f59e0b' },                  
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        .terminal-border { border: 1px solid #1e3a8a; }
-        .divider { border-bottom: 1px solid #1e3a8a; margin: 10px 0; }
-        .double-divider { border-bottom: 2px double #1e3a8a; margin: 15px 0; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #050505; }
-        ::-webkit-scrollbar-thumb { background: #1e3a8a; }
-        
-        .home-btn { border: 1px solid #a16207; background-color: #422006; transition: all 0.2s; }
-        .home-btn:hover { background-color: #713f12; color: #fefce8; }
-
-        /* Tailored Modal Styling */
-        .modal-overlay { background-color: rgba(0,0,0,0.9); display: none; }
-        .modal-container { 
-            border: 2px solid #1e3a8a; 
-            background-color: #080808; 
-            box-shadow: 0 0 40px rgba(30,58,138,0.4);
+        body { transition: background-color 0.3s, color 0.3s; }
+        .glass-panel { 
+            @apply bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm rounded-3xl; 
         }
-        input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-        }
+        .modal-active { display: flex !important; }
     </style>
 </head>
-<body class="p-6">
-    <div class="flex justify-between items-center mb-6 bg-[#0a0a0a] p-3 border border-blue-900 shadow-[0_0_10px_rgba(30,58,138,0.3)]">
-        <div class="flex gap-2">
-            <a href="/stats/{{ year }}/{{ week - 1 }}" 
-               class="bg-blue-900 px-4 py-1 text-xs font-bold text-blue-200 hover:bg-blue-700 transition-colors">
-               ◀ PREV_WEEK
-            </a>
-            <a href="/stats/{{ year }}/{{ week + 1 }}" 
-               class="bg-blue-900 px-4 py-1 text-xs font-bold text-blue-200 hover:bg-blue-700 transition-colors">
-               NEXT_WEEK ▶
-            </a>
+<body class="bg-slate-50 dark:bg-[#020617] text-slate-900 dark:text-slate-100 min-h-screen font-sans">
+
+    <nav class="sticky top-0 z-40 w-full border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-[#020617]/80 backdrop-blur-md">
+    <div class="max-w-6xl mx-auto px-6 h-20 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-active-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-active-500/20">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                </svg>
+            </div>
+            <div class="flex flex-col">
+                <span class="font-black tracking-tighter text-xl text-slate-900 dark:text-white">Task<span class="text-active-500">Flow</span></span>
+                <span class="text-[9px] font-black text-slate-400 dark:text-slate-600 tracking-[0.3em] -mt-1 uppercase">v1.0.0</span>
+            </div>
         </div>
 
-        <a href="/" class="home-btn px-6 py-1 text-xs font-bold text-yellow-500 uppercase tracking-widest">
-            🏠 Dashboard [ESC]
-        </a>
+        <div class="flex items-center gap-6">
+            {% if request.path == '/stats' or request.path.startswith('/stats/') %}
+                <a href="/" class="flex items-center gap-2 px-5 py-3 bg-active-500/10 text-active-500 rounded-xl text-[10px] font-black tracking-widest transition-all shadow-lg hover:scale-105 hover:bg-active-500/20 active:scale-95">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M21 11H6.83l3.58-3.59L9 6l-6 6 6 6 1.41-1.41L6.83 13H21v-2z"/></svg>
+                    DASHBOARD
+                </a>
+            {% else %}
+                <a href="/stats" class="text-[10px] font-black text-slate-400 hover:text-active-500 transition-colors tracking-[0.2em] uppercase">Weekly Insights</a>
+            {% endif %}
 
-        <div class="text-cyan-400 font-bold px-2">
-            KW {{ week }}/{{ year }}
+            <button onclick="toggleTheme()" class="p-2.5 rounded-2xl bg-slate-100 dark:bg-slate-800 transition-all hover:scale-105 active:scale-95">
+                <span id="theme-icon-sun" class="hidden dark:block text-warn-500 text-xl">☀️</span>
+                <span id="theme-icon-moon" class="block dark:hidden text-slate-600 text-xl">🌙</span>
+            </button>
         </div>
     </div>
+</nav>
 
-    <div class="terminal-border p-5 bg-black shadow-2xl">
-        <h1 class="text-cyan-400 font-bold text-lg mb-1 uppercase tracking-widest">📊 Weekly Statistics Report</h1>
-        <p class="text-gray-500 text-xs mb-4">
-            <span class="font-bold text-gray-400 uppercase">Period:</span> {{ stats.first_day.strftime('%d.%m.%Y') }} - {{ stats.last_day.strftime('%d.%m.%Y') }}
-        </p>
-
-        {% if not tasks_by_date %}
-            <div class="py-20 text-center border border-dashed border-gray-800">
-                <p class="text-yellow-600 font-bold">❌ No records found for this period.</p>
+    <main class="max-w-6xl mx-auto p-6 space-y-8">
+        
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+            <div class="flex gap-2">
+                <a href="/stats/{{ year }}/{{ week - 1 }}" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-[10px] font-black tracking-widest transition-all">◀ PREV</a>
+                <a href="/stats/{{ year }}/{{ week + 1 }}" class="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-[10px] font-black tracking-widest transition-all">NEXT ▶</a>
             </div>
-        {% else %}
             
-            <h3 class="text-yellow-500 font-bold mt-6 mb-2 uppercase">📋 Detailed Task History</h3>
-            <div class="divider"></div>
-            
-            {% for date_key, tasks in tasks_by_date.items() %}
-                <div class="mt-4">
-                    <h4 class="text-cyan-400 font-bold text-xs mb-2">{{ tasks[0].finished_at.strftime('%A, %d.%m.%Y') }}</h4>
-                    {% set day_total = namespace(value=0) %}
-                    <div class="space-y-0.5">
-                        {% for task in tasks %}
-                            <div class="grid grid-cols-12 gap-2 pl-4 py-1 border-l border-blue-900/30 hover:bg-blue-950/20 group items-center">
-                                <span class="col-span-2 text-green-500 font-bold">{{ task.agresso_code }}</span>
-                                <span class="col-span-6 text-gray-400 truncate">{{ task.activity }}</span>
-                                <span class="col-span-1 text-gray-600 text-[10px]">{{ task.first_started_at.strftime('%H:%M') }}-{{ task.finished_at.strftime('%H:%M') }}</span>
-                                <span class="col-span-1 text-yellow-600 text-right font-bold">{{ "%.2f"|format(task.duration) }}h</span>
-                                
-                                <div class="col-span-2 text-right opacity-0 group-hover:opacity-100 transition-opacity space-x-2">
-                                    <button onclick="openEditModal('{{ task.id }}', '{{ task.agresso_code }}', '{{ task.activity }}', '{{ task.first_started_at.isoformat() }}', '{{ task.finished_at.isoformat() }}')"
-                                            class="text-blue-500 hover:text-cyan-300 font-bold text-[10px]">[EDIT]</button>
-                                    <button hx-post="/api/task/delete/{{task.id}}" hx-confirm="Delete permanently?" hx-target="body" 
-                                            class="text-red-900 hover:text-red-500 font-bold text-[10px]">[DEL]</button>
-                                </div>
-                            </div>
-                            {% set day_total.value = day_total.value + task.duration %}
-                        {% endfor %}
-                    </div>
-                    <p class="text-right text-gray-600 text-[10px] mt-1 italic">
-                        DAY TOTAL: <span class="text-gray-400 font-bold">{{ "%.2f"|format(day_total.value) }}h</span>
-                    </p>
+            <div class="text-center">
+                <p class="text-slate-400 dark:text-slate-500 text-[10px] font-black tracking-[0.3em] uppercase">Calendar Week</p>
+                <h1 class="text-2xl font-black tracking-tighter uppercase">{{ week }} <span class="text-active-500">/ {{ year }}</span></h1>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <span class="text-[10px] font-black px-4 py-2 bg-active-500/10 text-active-500 rounded-full uppercase tracking-widest border border-active-500/20">
+                    Total: {{ "%.2f"|format(stats.total_hours) }}h
+                </span>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {% for code, data in stats.stats.items() %}
+            <div class="glass-panel p-6 group transition-all hover:border-active-500/50">
+                <p class="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">{{ code }}</p>
+                <div class="flex justify-between items-end">
+                    <h2 class="text-2xl font-black tabular-nums text-slate-900 dark:text-slate-200">{{ "%.2f"|format(data.total_hours) }}h</h2>
+                    <span class="text-[10px] font-bold text-active-500 bg-active-500/5 px-2 py-0.5 rounded-lg mb-1">{{ (data.total_hours / stats.total_hours * 100)|int if stats.total_hours > 0 else 0 }}%</span>
                 </div>
+            </div>
             {% endfor %}
+        </div>
 
-            <div class="double-divider"></div>
-
-            <h3 class="text-yellow-500 font-bold mt-8 mb-2 uppercase">💼 Aggregated Summary</h3>
-            <div class="divider"></div>
-            <div class="space-y-1">
-                {% for code, data in stats.stats.items() %}
-                <div class="grid grid-cols-12 gap-4 items-center py-1">
-                    <span class="col-span-2 text-green-500 font-bold">{{ code }}</span>
-                    <span class="col-span-2 text-yellow-500 font-bold">{{ "%.2f"|format(data.total_hours) }}h</span>
-                    <div class="col-span-8 flex justify-end items-center gap-2">
-                        <div class="w-full bg-gray-950 h-1 max-w-[200px] border border-gray-900">
-                            <div class="bg-cyan-600 h-full" style="width: {{ (data.total_hours / stats.total_hours * 100) }}%"></div>
+        <div class="glass-panel overflow-hidden">
+            {% for date, day_tasks in tasks_by_date.items() %}
+            <div class="border-b last:border-b-0 border-slate-100 dark:border-slate-800">
+                <div class="px-8 py-4 bg-slate-50/50 dark:bg-slate-800/40 flex justify-between items-center">
+                    <span class="text-[11px] font-black text-slate-400 dark:text-active-500 uppercase tracking-[0.2em]">{{ date }}</span>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase">Daily Total: {{ "%.2f"|format(day_tasks|sum(attribute='duration')) }}h</span>
+                </div>
+                <div class="divide-y divide-slate-100 dark:divide-slate-800/50">
+                    {% for task in day_tasks %}
+                    <div class="px-8 py-5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-active-500/[0.03] transition-all group">
+                        <div class="flex items-center gap-8">
+                            <span class="text-[10px] font-black text-slate-300 dark:text-slate-500 w-16 uppercase">{{ task.first_started_at.strftime('%H:%M') if task.first_started_at else '--:--' }}</span>
+                            <div>
+                                <p class="text-sm font-bold text-slate-700 dark:text-slate-200">{{ task.activity }}</p>
+                                <p class="text-[10px] font-black text-active-500 uppercase tracking-widest mt-0.5">{{ task.agresso_code }}</p>
+                            </div>
                         </div>
-                        <span class="text-cyan-700 font-bold w-12 text-right">{{ "%.1f"|format(data.total_hours / stats.total_hours * 100) }}%</span>
+                        <div class="flex items-center gap-8">
+                            <span class="text-sm font-black tabular-nums text-slate-400 dark:text-slate-500">{{ "%.2f"|format(task.duration) }}h</span>
+                            <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                <button onclick="openEditModal('{{task.id}}', '{{task.agresso_code}}', '{{task.activity}}', '{{task.duration}}')" 
+                                        class="p-2 text-slate-400 hover:text-warn-500 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </button>
+                                <button hx-post="/api/task/delete/{{task.id}}" hx-confirm="Delete this entry?" hx-target="body" 
+                                        class="p-2 text-slate-400 hover:text-stop-500 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <div id="editModal" class="fixed inset-0 bg-slate-900/60 dark:bg-[#020617]/90 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-md p-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <h3 class="text-xl font-black tracking-tighter uppercase mb-6 text-slate-900 dark:text-white">Edit <span class="text-warn-500">Entry</span></h3>
+            <form id="editForm" hx-post="" hx-target="body">
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Agresso Code</label>
+                        <input type="text" name="code" id="modalCode" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-none rounded-xl mt-1 text-sm font-bold text-active-500 px-4 py-3 focus:ring-2 focus:ring-active-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Activity Description</label>
+                        <input type="text" name="activity" id="modalActivity" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-none rounded-xl mt-1 text-sm font-bold px-4 py-3 focus:ring-2 focus:ring-active-500 outline-none text-slate-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Duration (Hours)</label>
+                        <input type="number" step="0.01" name="duration" id="modalDuration" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-none rounded-xl mt-1 text-sm font-bold px-4 py-3 focus:ring-2 focus:ring-active-500 outline-none text-slate-800 dark:text-white">
                     </div>
                 </div>
-                {% endfor %}
-            </div>
-            
-            <div class="flex justify-between items-center font-bold text-lg mt-4 pt-4 border-t-2 border-blue-900">
-                <span class="text-gray-500 uppercase text-xs tracking-[0.3em]">Weekly Grand Total</span>
-                <span class="text-white bg-blue-950 px-4 py-1">{{ "%.2f"|format(stats.total_hours) }} hours</span>
-            </div>
-
-        {% endif %}
-    </div>
-
-    <div id="edit-modal-overlay" class="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-50" style="display: none;">
-        <div class="modal-container rounded-none p-6 w-full max-w-lg">
-            <div class="flex justify-between items-center mb-6 border-b border-blue-900 pb-2">
-                <h3 class="text-cyan-400 font-bold uppercase tracking-widest">📝 Modify Entry</h3>
-                <span class="text-[10px] text-blue-800 font-bold">SYS_EDIT_MODE</span>
-            </div>
-            
-            <form id="edit-modal-form" hx-post="" hx-target="body" class="space-y-5">
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">Agresso Code</label>
-                    <input type="text" name="code" id="m_code" required class="col-span-3 bg-black border border-gray-800 text-cyan-400 p-2 text-sm focus:border-cyan-600 outline-none">
-                </div>
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">Activity</label>
-                    <input type="text" name="activity" id="m_activity" required class="col-span-3 bg-black border border-gray-800 text-gray-400 p-2 text-sm focus:border-cyan-600 outline-none">
-                </div>
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">Start Time</label>
-                    <input type="datetime-local" name="started_at" id="m_start" required step="1" class="col-span-3 bg-black border border-gray-800 text-green-500 p-2 text-sm outline-none">
-                </div>
-                <div class="grid grid-cols-4 items-center">
-                    <label class="text-[10px] text-gray-500 font-bold uppercase">End Time</label>
-                    <input type="datetime-local" name="finished_at" id="m_finish" required step="1" class="col-span-3 bg-black border border-gray-800 text-yellow-500 p-2 text-sm outline-none">
-                </div>
-
-                <div class="flex justify-end gap-4 mt-8 pt-4 border-t border-gray-900">
-                    <button type="button" onclick="closeEditModal()" class="text-[10px] text-gray-600 hover:text-white uppercase font-bold">[ABORT]</button>
-                    <button type="submit" class="bg-blue-900 hover:bg-blue-700 text-white px-8 py-2 text-xs font-bold uppercase border border-blue-500 transition-all">
-                        💾 Commit Changes
-                    </button>
+                <div class="flex gap-3 mt-8">
+                    <button type="button" onclick="closeEditModal()" class="flex-1 py-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-[10px] font-black tracking-widest uppercase hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300">Cancel</button>
+                    <button type="submit" class="flex-1 py-3 bg-warn-500 text-white rounded-xl text-[10px] font-black tracking-widest uppercase shadow-lg shadow-warn-500/20">Save Changes</button>
                 </div>
             </form>
         </div>
     </div>
 
     <script>
-    // Global HTMX configuration: Refresh page on successful non-GET requests
-    document.body.addEventListener('htmx:afterRequest', e => {
-        if (e.detail.successful && e.detail.requestConfig.method !== 'GET') {
-            // Close the modal immediately before reloading
-            closeEditModal();
-            window.location.reload();
+        function toggleTheme() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+            localStorage.theme = html.classList.contains('dark') ? 'dark' : 'light';
         }
-    });
 
-    function openEditModal(id, code, activity, start, finish) {
-        // Fill form values
-        document.getElementById('m_code').value = code;
-        document.getElementById('m_activity').value = activity;
-        
-        // Ensure time format is correct for HTML5 input
-        if (start) document.getElementById('m_start').value = start.substring(0, 19);
-        if (finish) document.getElementById('m_finish').value = finish.substring(0, 19);
-        
-        // Update HTMX target URL
-        const form = document.getElementById('edit-modal-form');
-        form.setAttribute('hx-post', `/api/task/edit-details/${id}`);
-        
-        // Re-process the form so HTMX recognizes the new attribute
-        htmx.process(form); 
-        
-        // Show the overlay
-        document.getElementById('edit-modal-overlay').style.display = 'flex';
-    }
+        // Initialize theme from localStorage
+        if (localStorage.theme === 'light') document.documentElement.classList.remove('dark');
 
-    function closeEditModal() {
-        const modal = document.getElementById('edit-modal-overlay');
-        if (modal) {
-            modal.style.display = 'none';
+        function openEditModal(id, code, activity, duration) {
+            const modal = document.getElementById('editModal');
+            const form = document.getElementById('editForm');
+            document.getElementById('modalCode').value = code;
+            document.getElementById('modalActivity').value = activity;
+            document.getElementById('modalDuration').value = duration;
+            form.setAttribute('hx-post', `/api/task/edit/${id}`);
+            htmx.process(form);
+            modal.classList.add('modal-active');
         }
-    }
 
-    // Hotkey Management
-    document.addEventListener('keydown', e => {
-        if (e.key === "Escape") {
-            const modal = document.getElementById('edit-modal-overlay');
-            // If modal is open, close it. Otherwise, go home (if in stats).
-            if (modal && modal.style.display === 'flex') {
-                closeEditModal();
-            } else if (window.location.pathname.includes('stats')) {
-                window.location.href = "/";
-            }
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('modal-active');
         }
-    });
-  </script>
+
+        document.body.addEventListener('htmx:afterRequest', e => {
+            if (e.detail.successful && e.detail.requestConfig.method !== 'GET') window.location.reload();
+        });
+    </script>
 </body>
 </html>

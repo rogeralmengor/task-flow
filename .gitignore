@@ -1,0 +1,14 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Environment
+.venv/
+.uv/
+
+# Database (Keep your real data private!)
+*.db
+*.sqlite
+
+# OS files
+.DS_Store
