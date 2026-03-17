@@ -2,220 +2,205 @@
 <html lang="en" class="bg-[#050505] text-gray-300 font-mono">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agresso Time Tracker - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <style>
-        .terminal-box {
-            border: 1px solid #1e3a8a;
-            background-color: #000000;
-        }
-        .header-bg {
-            background-color: #0a0a0a;
-            border-bottom: 2px solid #1e3a8a;
-        }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #050505; }
-        ::-webkit-scrollbar-thumb { background: #1e40af; }
-        
+        .terminal-box { border: 1px solid #1e3a8a; background-color: #000000; }
+        .header-bg { background-color: #0a0a0a; border-bottom: 2px solid #1e3a8a; }
         .blink { animation: blinker 1.5s linear infinite; }
         @keyframes blinker { 50% { opacity: 0; } }
-
-        .timer-label { color: #6b7280; font-weight: bold; }
-        .timer-value { color: #d1d5db; }
-        .active-time-label { color: #eab308; font-weight: bold; }
-        .active-time-value { color: #ffffff; }
+        
+        /* Tailored Modal Styling */
+        .modal-overlay { background-color: rgba(0,0,0,0.9); display: none; }
+        .modal-container { 
+            border: 2px solid #1e3a8a; 
+            background-color: #080808; 
+            box-shadow: 0 0 40px rgba(30,58,138,0.4);
+        }
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(1); }
     </style>
 </head>
 <body class="p-4 md:p-8">
-
-    <header class="header-bg p-4 mb-6 flex justify-between items-center shadow-lg">
+    <header class="header-bg p-4 mb-6 flex justify-between items-center">
         <div class="flex items-center gap-3">
             <span class="text-purple-500 text-xl">👤</span>
             <h1 class="text-cyan-400 font-bold text-lg tracking-widest">{{ user }}</h1>
         </div>
-        <a href="/stats" class="text-yellow-500 hover:text-yellow-300 font-bold text-sm tracking-tighter">
-            [W] WEEKLY_STATS
-        </a>
+        <a href="/stats" class="text-yellow-500 hover:text-yellow-300 font-bold text-sm uppercase">[W] Weekly_Stats</a>
     </header>
 
     <section class="mb-8">
-        <div class="terminal-box p-4 border-green-900 shadow-[0_0_10px_rgba(0,50,0,0.3)]">
-            <h3 class="text-green-500 text-xs font-bold mb-3 uppercase">📋 Add New Task</h3>
+        <div class="terminal-box p-4 border-green-900 shadow-[0_0_10px_rgba(0,50,0,0.2)]">
+            <h3 class="text-green-500 text-xs font-bold mb-3 uppercase tracking-tighter">📋 Create Entry</h3>
             <form hx-post="/api/add" hx-target="body" class="flex flex-wrap gap-4">
-                <input type="text" name="code" placeholder="Agresso Code (e.g. 5710)" required
-                       class="bg-black border border-gray-800 text-cyan-400 p-2 text-sm focus:border-cyan-600 outline-none w-full md:w-1/4">
-                <input type="text" name="activity" placeholder="What are you doing?" required
-                       class="bg-black border border-gray-800 text-gray-400 p-2 text-sm focus:border-cyan-600 outline-none flex-grow">
-                <button type="submit" class="bg-blue-900 hover:bg-blue-700 text-white px-6 py-2 text-xs font-bold border border-blue-500 transition-all">
-                    + CREATE_TASK
+                <input type="text" name="code" placeholder="Code" required class="bg-black border border-gray-800 text-cyan-400 p-2 text-sm w-full md:w-1/4 outline-none focus:border-cyan-600">
+                <input type="text" name="activity" placeholder="Activity" required class="bg-black border border-gray-800 text-gray-400 p-2 text-sm flex-grow outline-none focus:border-cyan-600">
+                <button type="submit" class="bg-blue-900 hover:bg-blue-700 text-white px-6 py-2 text-xs font-bold border border-blue-500 transition-all uppercase">
+                    + Push_Task
                 </button>
             </form>
         </div>
     </section>
 
     <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
-        
         <aside class="md:col-span-4">
             <div class="terminal-box p-5 h-full relative overflow-hidden">
-                <h2 class="text-yellow-500 text-sm font-bold mb-4 flex items-center gap-2">
-                    ⏱️ Current Task
-                </h2>
-                
-                <div id="active-task-display" class="border border-blue-800 p-4 bg-[#080808] min-h-[180px] flex flex-col justify-center">
+                <h2 class="text-yellow-500 text-sm font-bold mb-4 uppercase">⏱️ Monitor</h2>
+                <div id="active-task-display" class="border border-blue-800 p-4 bg-[#080808] min-h-[180px]">
                     {% if running %}
-                        <div class="flex items-center gap-2 mb-3">
-                            <span class="blink text-green-500 text-xs">▶</span>
-                            <span class="text-white font-bold tracking-widest text-xs uppercase">RUNNING</span>
-                        </div>
-                        
+                        <div class="flex items-center gap-2 mb-3"><span class="blink text-green-500 text-xs">▶</span><span class="text-white font-bold text-xs uppercase tracking-widest">Running</span></div>
                         <div class="space-y-1 text-sm mb-4">
                             <p><span class="text-cyan-500 font-bold">Code:</span> <span class="text-white">{{ running.agresso_code }}</span></p>
                             <p><span class="text-cyan-500 font-bold">Activity:</span> <span class="text-white">{{ running.activity }}</span></p>
                         </div>
-
-                        <div class="space-y-1 text-xs mb-6 font-mono">
-                            <p>
-                                <span class="active-time-label">⏱️ Active Time:</span> 
-                                <span id="active-timer" class="active-time-value">00h 00m 00s</span>
-                            </p>
-                            <p>
-                                <span class="timer-label">Elapsed:</span> 
-                                <span id="elapsed-timer" class="timer-value">00h 00m 00s</span>
-                            </p>
-                            <p class="pt-2">
-                                <span class="text-green-500 font-bold">Started:</span> 
-                                <span class="text-green-200">{{ running.first_started_at.strftime('%H:%M') }}</span>
-                                <span class="text-cyan-500 font-bold ml-4">Now:</span> 
-                                <span id="clock" class="text-cyan-200">--:--:--</span>
-                            </p>
-                            <p class="text-gray-600 text-[10px] pt-2 uppercase">Space: Pause/Resume | S: Stop</p>
+                        <div class="text-xs mb-6 font-mono bg-black/50 p-2 border border-gray-900">
+                            <p class="text-yellow-500 font-bold">⏱️ Session: <span id="active-timer" class="text-white">00h 00m 00s</span></p>
+                            <p class="text-gray-600">Total: <span id="elapsed-timer" class="text-gray-400">00h 00m 00s</span></p>
                         </div>
-
-                        <button hx-post="/api/task/stop/{{running.id}}" 
-                                hx-target="body"
-                                class="w-full bg-red-950/30 border border-red-900 text-red-500 hover:bg-red-900 hover:text-white p-2 text-[10px] font-bold transition-all uppercase">
-                            ■ STOP_AND_FINISH
-                        </button>
-
+                        <div class="grid grid-cols-2 gap-2">
+                            <button hx-post="/api/task/pause/{{running.id}}" hx-target="body" class="bg-yellow-900/20 border border-yellow-700 text-yellow-500 hover:bg-yellow-700 hover:text-white p-2 text-[10px] font-bold transition-all uppercase">⏸ Pause</button>
+                            <button hx-post="/api/task/stop/{{running.id}}" hx-target="body" class="bg-red-900/20 border border-red-900 text-red-500 hover:bg-red-900 hover:text-white p-2 text-[10px] font-bold transition-all uppercase">■ Finish</button>
+                        </div>
                         <script>
                             (function() {
-                                const startTime = new Date("{{ running.first_started_at.isoformat() }}");
+                                const startTime = new Date("{{ running.current_segment_start.isoformat() if running.current_segment_start else running.first_started_at.isoformat() }}");
                                 const initialDuration = {{ running.duration * 3600 }};
-
-                                function formatTUI(seconds) {
-                                    const h = Math.floor(seconds / 3600);
-                                    const m = Math.floor((seconds % 3600) / 60);
-                                    const s = Math.floor(seconds % 60);
-                                    return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+                                function format(s) {
+                                    const h = Math.floor(s / 3600);
+                                    const m = Math.floor((s % 3600) / 60);
+                                    const sec = Math.floor(s % 60);
+                                    return `${String(h).padStart(2,'0')}h ${String(m).padStart(2,'0')}m ${String(sec).padStart(2,'0')}s`;
                                 }
-
-                                function tick() {
-                                    const now = new Date();
-                                    const diff = Math.floor((now - startTime) / 1000);
-                                    document.getElementById('active-timer').innerText = formatTUI(initialDuration + diff);
-                                    document.getElementById('elapsed-timer').innerText = formatTUI(diff);
-                                    document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB', { hour12: false });
-                                }
-
-                                setInterval(tick, 1000);
-                                tick();
+                                setInterval(() => {
+                                    const diff = Math.floor((new Date() - startTime) / 1000);
+                                    document.getElementById('active-timer').innerText = format(diff);
+                                    document.getElementById('elapsed-timer').innerText = format(initialDuration + ({{ 1 if running.status == 'running' else 0 }} * diff));
+                                }, 1000);
                             })();
                         </script>
                     {% else %}
-                        <div class="text-center py-10 border border-dashed border-gray-900">
-                            <p class="text-gray-700 italic text-sm italic">No task running</p>
-                        </div>
+                        <div class="text-center py-10 text-gray-800 italic uppercase text-[10px] tracking-widest border border-dashed border-gray-900">IDLE_STATE</div>
                     {% endif %}
                 </div>
             </div>
         </aside>
 
         <main class="md:col-span-8">
-            <div class="terminal-box p-0 overflow-hidden">
-                <div class="p-4 bg-gray-950 flex justify-between items-center border-b border-blue-900">
-                    <h2 class="text-green-500 text-sm font-bold uppercase">📋 Todo Tasks</h2>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs">
-                        <thead>
-                            <tr class="bg-blue-900 text-white uppercase">
-                                <th class="p-3 font-bold">ID</th>
-                                <th class="p-3 font-bold">Code</th>
-                                <th class="p-3 font-bold">Activity</th>
-                                <th class="p-3 font-bold text-right">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-900">
-                            {% for task in todos %}
-                            <tr class="hover:bg-gray-900 transition-colors">
-                                <td class="p-3 text-gray-600">{{ task.id }}</td>
-                                <td class="p-3 text-cyan-400 font-bold">{{ task.agresso_code }}</td>
-                                <td class="p-3 text-gray-300">{{ task.activity }}</td>
-                                <td class="p-3 text-right">
-                                    <button hx-post="/api/task/start/{{task.id}}" 
-                                            hx-target="body"
-                                            class="text-blue-400 hover:text-cyan-300 font-bold">
-                                        [START]
-                                    </button>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="4" class="p-10 text-center text-gray-800 italic">Queue is empty. Take a break.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <footer class="mt-8">
-        <div class="terminal-box p-0 overflow-hidden border-blue-950">
-            <div class="p-3 bg-[#0a0a0a] border-b border-blue-900 flex items-center gap-2">
-                <span class="text-green-500 text-sm">✅</span>
-                <h2 class="text-blue-400 text-xs font-bold uppercase">Finished Tasks Today</h2>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-[11px]">
-                    <thead class="text-gray-500 border-b border-gray-900">
-                        <tr>
-                            <th class="p-3">ID</th>
-                            <th class="p-3">Code</th>
-                            <th class="p-3">Activity</th>
-                            <th class="p-3">Start</th>
-                            <th class="p-3">End</th>
-                            <th class="p-3 text-right">Duration</th>
-                        </tr>
+            <div class="terminal-box">
+                <div class="p-3 bg-gray-950 border-b border-blue-900 text-green-500 text-xs font-bold uppercase tracking-widest">📋 Task Queue</div>
+                <table class="w-full text-left text-xs">
+                    <thead>
+                        <tr class="bg-blue-900/50 text-white uppercase"><th class="p-3">ID</th><th class="p-3">Code</th><th class="p-3">Activity</th><th class="p-3 text-right">Action</th></tr>
                     </thead>
                     <tbody class="divide-y divide-gray-900">
-                        {% for task in finished %}
-                        <tr class="hover:bg-gray-950 transition-colors">
+                        {% for task in todos %}
+                        <tr class="hover:bg-gray-900/50 group">
                             <td class="p-3 text-gray-700">{{ task.id }}</td>
-                            <td class="p-3 text-cyan-600 font-bold">{{ task.agresso_code }}</td>
+                            <td class="p-3 text-cyan-400 font-bold">{{ task.agresso_code }}</td>
                             <td class="p-3 text-gray-400">{{ task.activity }}</td>
-                            <td class="p-3 text-gray-500">{{ task.first_started_at.strftime('%H:%M') if task.first_started_at else '--:--' }}</td>
-                            <td class="p-3 text-gray-500">{{ task.finished_at.strftime('%H:%M') if task.finished_at else '--:--' }}</td>
-                            <td class="p-3 text-right text-yellow-600 font-bold">
-                                {{ "%.2f"|format(task.duration) }}h
+                            <td class="p-3 text-right space-x-2">
+                                <button hx-post="/api/task/start/{{task.id}}" hx-target="body" class="text-blue-400 hover:text-cyan-300 font-bold text-[10px]">[START]</button>
+                                <button hx-post="/api/task/delete/{{task.id}}" hx-confirm="Delete?" hx-target="body" class="text-red-900 hover:text-red-500 font-bold text-[10px] opacity-0 group-hover:opacity-100 transition-opacity">[DEL]</button>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+        </main>
+    </div>
+
+    <footer class="mt-8">
+        <div class="terminal-box">
+            <div class="p-3 bg-[#0a0a0a] border-b border-blue-900 text-blue-400 text-xs font-bold uppercase tracking-widest">✅ Completed Today</div>
+            <table class="w-full text-left text-[11px]">
+                <thead>
+                    <tr class="text-gray-600 border-b border-gray-900 uppercase"><th class="p-3">Code</th><th class="p-3">Activity</th><th class="p-3">Window</th><th class="p-3 text-right">Duration</th><th class="p-3 text-right">Actions</th></tr>
+                </thead>
+                <tbody class="divide-y divide-gray-900">
+                    {% for task in finished %}
+                    <tr class="hover:bg-gray-950 group">
+                        <td class="p-3 text-cyan-600 font-bold">{{ task.agresso_code }}</td>
+                        <td class="p-3 text-gray-500">{{ task.activity }}</td>
+                        <td class="p-3 text-gray-700">{{ task.first_started_at.strftime('%H:%M') }} - {{ task.finished_at.strftime('%H:%M') }}</td>
+                        <td class="p-3 text-right text-yellow-600 font-bold">{{ "%.2f"|format(task.duration) }}h</td>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="openEditModal('{{ task.id }}', '{{ task.agresso_code }}', '{{ task.activity }}', '{{ task.first_started_at.isoformat() }}', '{{ task.finished_at.isoformat() }}')"
+                                    class="text-blue-900 hover:text-cyan-500 font-bold">[EDIT]</button>
+                            <button hx-post="/api/task/delete/{{task.id}}" hx-confirm="Delete permanently?" hx-target="body" class="text-red-900 hover:text-red-500 font-bold opacity-20 group-hover:opacity-100 transition-opacity">[DEL]</button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </footer>
 
+    <div id="edit-modal-overlay" class="modal-overlay fixed inset-0 flex items-center justify-center p-4 z-50" style="display: none;">
+        <div class="modal-container p-6 w-full max-w-lg">
+            <div class="flex justify-between items-center mb-6 border-b border-blue-900 pb-2">
+                <h3 class="text-cyan-400 font-bold uppercase tracking-widest">📝 Modify Entry</h3>
+                <span class="text-[10px] text-blue-800 font-bold uppercase">Manual_Override</span>
+            </div>
+            
+            <form id="edit-modal-form" hx-post="" hx-target="body" class="space-y-5">
+                <div class="grid grid-cols-4 items-center">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase">Code</label>
+                    <input type="text" name="code" id="m_code" required class="col-span-3 bg-black border border-gray-800 text-cyan-400 p-2 text-sm outline-none focus:border-cyan-600">
+                </div>
+                <div class="grid grid-cols-4 items-center">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase">Activity</label>
+                    <input type="text" name="activity" id="m_activity" required class="col-span-3 bg-black border border-gray-800 text-gray-400 p-2 text-sm outline-none focus:border-cyan-600">
+                </div>
+                <div class="grid grid-cols-4 items-center">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase">Start</label>
+                    <input type="datetime-local" name="started_at" id="m_start" required step="1" class="col-span-3 bg-black border border-gray-800 text-green-500 p-2 text-sm">
+                </div>
+                <div class="grid grid-cols-4 items-center">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase">Finish</label>
+                    <input type="datetime-local" name="finished_at" id="m_finish" required step="1" class="col-span-3 bg-black border border-gray-800 text-yellow-500 p-2 text-sm">
+                </div>
+
+                <div class="flex justify-end gap-4 mt-8 pt-4 border-t border-gray-900">
+                    <button type="button" onclick="closeEditModal()" class="text-[10px] text-gray-600 hover:text-white uppercase font-bold">[Cancel]</button>
+                    <button type="submit" class="bg-blue-900 hover:bg-blue-700 text-white px-8 py-2 text-xs font-bold uppercase border border-blue-500 transition-all">
+                        💾 Update_Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        document.body.addEventListener('htmx:afterRequest', function(evt) {
-            if (evt.detail.successful) {
-                window.location.reload();
+        // Hotkeys
+        document.addEventListener('keydown', e => {
+            if (e.key === "Escape") { 
+                if(document.getElementById('edit-modal-overlay').style.display === 'flex') closeEditModal();
+                else window.location.href = "/"; 
             }
         });
+
+        // HTMX reload
+        document.body.addEventListener('htmx:afterRequest', e => e.detail.successful && window.location.reload());
+
+        function openEditModal(id, code, activity, start, finish) {
+            document.getElementById('m_code').value = code;
+            document.getElementById('m_activity').value = activity;
+            // HTML5 datetime-local expects YYYY-MM-DDTHH:MM:SS
+            document.getElementById('m_start').value = start.substring(0, 19);
+            document.getElementById('m_finish').value = finish.substring(0, 19);
+            
+            const form = document.getElementById('edit-modal-form');
+            form.setAttribute('hx-post', `/api/task/edit-details/${id}`);
+            htmx.process(form); // Tell HTMX to watch the new action
+            
+            document.getElementById('edit-modal-overlay').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal-overlay').style.display = 'none';
+        }
     </script>
 </body>
 </html>

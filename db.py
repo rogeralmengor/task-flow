@@ -78,7 +78,6 @@ class TimeTrackingDB:
     
     def start_task(self, task_id):
         """Start a task (set to running)"""
-        # First, check if there's already a running task
         running = self.get_running_task()
         if running:
             return None, "Another task is already running. Pause or stop it first."
@@ -87,8 +86,8 @@ class TimeTrackingDB:
         if task and task.status == 'todo':
             task.status = 'running'
             now = datetime.now()
-            task.first_started_at = now  # Record the first start time
-            task.current_segment_start = now  # Start timing this segment
+            task.first_started_at = now
+            task.current_segment_start = now
             self.session.commit()
             return task, None
         return None, "Task not found or not in TODO state"
@@ -98,11 +97,10 @@ class TimeTrackingDB:
         task = self.get_task_by_id(task_id)
         if task and task.status == 'running':
             task.status = 'paused'
-            # Calculate elapsed time for this segment and add to total duration
             if task.current_segment_start:
                 elapsed = (datetime.now() - task.current_segment_start).total_seconds() / 3600
                 task.duration += elapsed
-                task.current_segment_start = None  # Clear segment start
+                task.current_segment_start = None
             self.session.commit()
             return task
         return None
@@ -112,7 +110,7 @@ class TimeTrackingDB:
         task = self.get_task_by_id(task_id)
         if task and task.status == 'paused':
             task.status = 'running'
-            task.current_segment_start = datetime.now()  # Start new timing segment
+            task.current_segment_start = datetime.now()
             self.session.commit()
             return task
         return None
@@ -121,7 +119,6 @@ class TimeTrackingDB:
         """Stop a task and optionally mark as finished"""
         task = self.get_task_by_id(task_id)
         if task and task.status in ['running', 'paused']:
-            # Calculate final duration if running
             if task.status == 'running' and task.current_segment_start:
                 elapsed = (datetime.now() - task.current_segment_start).total_seconds() / 3600
                 task.duration += elapsed
@@ -131,57 +128,53 @@ class TimeTrackingDB:
                 task.finished_at = datetime.now()
             else:
                 task.status = 'todo'
+                task.first_started_at = None # Reset timing for todo state
+                task.duration = 0.0
             
             task.current_segment_start = None
             self.session.commit()
             return task
         return None
-    
-    def get_current_task_duration(self, task_id):
-        """Get the current duration of a running/paused task (in hours)"""
-        task = self.get_task_by_id(task_id)
-        if not task:
-            return 0.0
-        
-        duration = task.duration
-        
-        # Add current running segment time if the task is running
-        if task.status == 'running' and task.current_segment_start:
-            elapsed = (datetime.now() - task.current_segment_start).total_seconds() / 3600
-            duration += elapsed
-        
-        return duration
-    
-    def get_current_task_elapsed_seconds(self, task_id):
-        """Get elapsed time since first start (for display timer) in seconds"""
-        task = self.get_task_by_id(task_id)
-        if not task or not task.first_started_at:
-            return 0
-        
-        # Calculate total elapsed time from first start to now
-        elapsed = (datetime.now() - task.first_started_at).total_seconds()
-        return int(elapsed)
-    
-    # === UPDATE OPERATIONS ===
-    
-    def update_task(self, task_id, agresso_code=None, activity=None, duration=None, date=None):
-        """Update task details"""
+
+    # === UPDATE & DETAIL MANAGEMENT ===
+
+    def update_task_details(self, task_id, code, activity, started_at_iso, finished_at_iso):
+        """Update full details and recalculate duration for a finished task"""
         task = self.get_task_by_id(task_id)
         if task:
-            if agresso_code is not None:
-                task.agresso_code = agresso_code
-            if activity is not None:
-                task.activity = activity
-            if duration is not None:
-                task.duration = duration
-            if date is not None:
-                task.date = date
+            # Parse ISO strings from HTML5 datetime-local inputs
+            # T is stripped or replaced depending on input format
+            start_dt = datetime.fromisoformat(started_at_iso.replace('T', ' '))
+            end_dt = datetime.fromisoformat(finished_at_iso.replace('T', ' '))
+            
+            # Recalculate duration
+            duration_seconds = (end_dt - start_dt).total_seconds()
+            duration_hours = max(0.01, duration_seconds / 3600.0)
+            
+            task.agresso_code = code
+            task.activity = activity
+            task.first_started_at = start_dt
+            task.finished_at = end_dt
+            task.duration = duration_hours
+            
+            self.session.commit()
+            return task
+        return None
+
+    def update_task(self, task_id, agresso_code=None, activity=None, duration=None, date=None):
+        """Generic update for quick edits"""
+        task = self.get_task_by_id(task_id)
+        if task:
+            if agresso_code is not None: task.agresso_code = agresso_code
+            if activity is not None: task.activity = activity
+            if duration is not None: task.duration = duration
+            if date is not None: task.date = date
             self.session.commit()
             return task
         return None
     
     def delete_task(self, task_id):
-        """Delete a task"""
+        """Delete a task permanently"""
         task = self.get_task_by_id(task_id)
         if task:
             self.session.delete(task)
@@ -193,16 +186,14 @@ class TimeTrackingDB:
     
     def get_week_stats(self, year, week_number):
         """Get statistics for a specific week (ISO week)"""
-        # Get first day of the week (Monday) using ISO calendar
-        # ISO week starts on Monday
-        jan_4 = datetime(year, 1, 4)  # Jan 4 is always in week 1
+        # ISO week logic
+        jan_4 = datetime(year, 1, 4)
         week_1_monday = jan_4 - timedelta(days=jan_4.weekday())
         first_day = week_1_monday + timedelta(weeks=week_number - 1)
         last_day = first_day + timedelta(days=7)
         
         tasks = self.get_finished_tasks_by_date_range(first_day, last_day)
         
-        # Group by agresso code
         stats = {}
         total_hours = 0.0
         
@@ -232,32 +223,14 @@ class TimeTrackingDB:
         }
     
     def get_current_week_stats(self):
-        """Get statistics for the current week"""
         now = datetime.now()
         year, week, _ = now.isocalendar()
         return self.get_week_stats(year, week)
     
     def close(self):
-        """Close the database session"""
         self.session.close()
 
-
 if __name__ == "__main__":
-    # Test the database
     db = TimeTrackingDB()
-    
-    print("Database initialized successfully!")
-    print("\nAdding sample tasks...")
-    
-    db.add_task("PRJ-001", "Backend Development")
-    db.add_task("PRJ-001", "Code Review")
-    db.add_task("PRJ-002", "Meeting with Client")
-    
-    print("Sample tasks added!")
-    
-    todos = db.get_todo_tasks()
-    print(f"\nTODO tasks: {len(todos)}")
-    for task in todos:
-        print(f"  - {task.agresso_code}: {task.activity}")
-    
+    print("Database initialized.")
     db.close()
